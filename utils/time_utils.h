@@ -1,3 +1,6 @@
+#ifndef TREE_UTILS_H
+#define TREE_UTILS_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -12,4 +15,9 @@ typedef struct
     int hour;
     int minute;
     int seconds;
-} time_t;
+} time_struct_t;
+
+void clear_and_realloc(void **ptr, size_t alloc_size);
+time_struct_t *make_time(const char* buf);
+
+#endif
