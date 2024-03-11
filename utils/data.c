@@ -37,7 +37,6 @@ data_struct *read_data(FILE *fp, int max_reads) {
     for (int counter = 0; counter < max_reads; counter ++) {
         // The getline_clean() calls here will start from the second line onwards
         // From here onwards, all getline_clean() calls will only read the json lines
-        printf("%d\n", counter);
         if (getline_clean(&line_ptr, &size, fp) != (-1)) {
             // process json, extract key stats: stats only is doc->data->created_at & doc->data->sentiment
             memcpy(time_storage, strstr(line_ptr, "\"created_at\":") + 14, 20);
@@ -79,6 +78,9 @@ data_struct *read_data(FILE *fp, int max_reads) {
             new_data->time = make_time(time_storage);
             new_data->sentiment = strtold(sentiment_storage, NULL);
             index = 0;
+
+            free(line_ptr);
+            line_ptr = NULL;
         }
 
         temp = alloc_data_struct();
@@ -102,12 +104,11 @@ void free_data_struct_list(data_struct **list) {
     data_struct *data_to_free = *list;
     while (data_to_free) {
         data_struct *next = data_to_free->next;
-        free(data_to_free);
+        free(data_to_free); // TODO: will need to free the time_struct_t before doing this
+        data_to_free = NULL;
         assert(data_to_free == NULL);
         data_to_free = next; 
     }
-    free(list);
-    assert(list == NULL);
 
     return;
 }

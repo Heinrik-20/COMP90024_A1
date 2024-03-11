@@ -11,38 +11,42 @@ int main(int argc, char** argv) {
 
     int ierr, total_reads;
     size_t size = 0;
-    FILE *fp = fopen(argv[3], "r");
-    ierr = MPI_Init(&argc, &argv);
+    FILE *fp = fopen(argv[1], "r"); // We will need to make sure of a certain format to use argv[1], please run in this format: mpirun -np 1 ./build/main ../data/twitter-1mb.json
+    // ierr = MPI_Init(&argc, &argv);
 
-    char *starting_line = (char *)malloc(sizeof(char) * MAX_CHAR);
+    char *starting_line = NULL;
     getline_clean(&starting_line, &size, fp); // TODO: please make sure to read in rows from this string!!!
+    free(starting_line);
+    starting_line = NULL;
 
     // Initialise struct ret_struct *ret_struct
     int my_id;
-    int num_cores;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
-    MPI_Comm_size(MPI_COMM_WORLD, &num_cores);
+    int num_cores = 1;
+    // MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
+    // MPI_Comm_size(MPI_COMM_WORLD, &num_cores);
 
     if (num_cores == 1) {
         data_struct *new_data = read_data(fp, 100);
+        data_struct *next = new_data;
         for (int i=0;i < 100;i++) {
             printf(
                 "time: %d-%d-%d %d:%d:%d, sentiment: %LF \n",
-                new_data->time->year,
-                new_data->time->month,
-                new_data->time->day,
-                new_data->time->hour,
-                new_data->time->minute,
-                new_data->time->seconds,
-                new_data->sentiment
+                next->time->year,
+                next->time->month,
+                next->time->day,
+                next->time->hour,
+                next->time->minute,
+                next->time->seconds,
+                next->sentiment
             );
-            new_data = new_data->next;
+            next = next->next;
         }
+        free_data_struct_list(&new_data); // Temporary free here for testing
     }
     else {
         // Multiple cores to work on processing data
     }
 
-    
-    MPI_Finalize();
+    fclose(fp);
+    // MPI_Finalize();
 }
