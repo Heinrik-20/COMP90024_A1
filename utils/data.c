@@ -25,13 +25,15 @@ data_struct *read_data(FILE *fp, int max_reads) {
 
     data_struct *head_data = NULL;
     data_struct *temp = NULL;
+    data_struct *prev_data = NULL;
     data_struct *new_data = alloc_data_struct();
 
     char *line_ptr = NULL;
+    char *created_at = NULL;
     char time_storage[20];
-    char sentiment_storage[MAX_CHAR];
     char *sentiment = NULL;
-    int index = 0;
+    char sentiment_storage[MAX_CHAR];
+    int index = 0, valid_time = 0;
     size_t size = 0;
 
     for (int counter = 0; counter < max_reads; counter ++) {
@@ -39,10 +41,35 @@ data_struct *read_data(FILE *fp, int max_reads) {
         // From here onwards, all getline_clean() calls will only read the json lines
         if (getline_clean(&line_ptr, &size, fp) != (-1)) {
             // process json, extract key stats: stats only is doc->data->created_at & doc->data->sentiment
-            memcpy(time_storage, strstr(line_ptr, "\"created_at\":") + 14, 20);
-            time_storage[19] = '\0';
-            sentiment = strstr(line_ptr, "\"sentiment\":");
-            if (!sentiment) {
+            if ((created_at = strstr(line_ptr, "\"created_at\":"))) {
+                memcpy(time_storage, strstr(line_ptr, "\"created_at\":") + 14, 20);
+                time_storage[19] = '\0';
+                valid_time = 1; // To check if we can find any missing dates
+            }
+
+            if ((sentiment = strstr(line_ptr, "\"sentiment\":"))) {
+                sentiment += 12;
+
+                if (sentiment[0] == '-') {
+                    sentiment_storage[0] = '-';
+                    index += 1;
+                }
+                
+                while ((isdigit(sentiment[index])) || (sentiment[index] == '.')) {
+                    sentiment_storage[index] = sentiment[index];
+                    index += 1;
+                }
+
+                if (index == 0) {
+                    // Indicate that there was no read of the sentiment.
+                    sentiment_storage[0] = '-';
+                    sentiment_storage[1] = '9';
+                    sentiment_storage[2] = '9';
+                    sentiment_storage[3] = '9';
+                    sentiment_storage[4] = '9';
+                    index = 5;
+                }
+            } else {
                 // Indicate that there was no read of the sentiment.
                 sentiment_storage[0] = '-';
                 sentiment_storage[1] = '9';
@@ -51,48 +78,40 @@ data_struct *read_data(FILE *fp, int max_reads) {
                 sentiment_storage[4] = '9';
                 index = 5;
 
-            } else {
-                    sentiment += 12;
-
-                    if (sentiment[0] == '-') {
-                        sentiment_storage[0] = '-';
-                        index += 1;
-                    }
-                    
-                    while ((isdigit(sentiment[index])) || (sentiment[index] == '.')) {
-                        sentiment_storage[index] = sentiment[index];
-                        index += 1;
-                    }
-
-                    if (index == 0) {
-                        // Indicate that there was no read of the sentiment.
-                        sentiment_storage[0] = '-';
-                        sentiment_storage[1] = '9';
-                        sentiment_storage[2] = '9';
-                        sentiment_storage[3] = '9';
-                        sentiment_storage[4] = '9';
-                        index = 5;
-                    }
             }
             sentiment_storage[index] = '\0';
-            new_data->time = make_time(time_storage);
-            new_data->sentiment = strtold(sentiment_storage, NULL);
-            index = 0;
 
+            if (valid_time) { // No point making conversion when tweet is not valid
+                new_data->time = make_time(time_storage);
+                new_data->sentiment = strtold(sentiment_storage, NULL);
+            }
+            index = 0;
             free(line_ptr);
             line_ptr = NULL;
         }
 
-        temp = alloc_data_struct();
-        if (counter == 0) {
-            head_data = new_data;
-            head_data->next = temp;
-            new_data = temp;
+        if ((counter < max_reads - 1) && (valid_time)) {
+            temp = alloc_data_struct();
+            valid_time = 0;
+            if (counter == 0) {
+                head_data = new_data;
+                head_data->next = temp;
+                new_data = temp;
+            } else {
+                new_data->next = temp;
+                prev_data = new_data;
+                new_data = temp;
+            }
+        } else if ((counter == max_reads - 1) && (!valid_time)){
+            free(prev_data->next);
+            prev_data->next = NULL;
         } else {
-            new_data->next = temp;
-            new_data = temp;
+            continue;
         }
-        
+    }
+    if (line_ptr) {
+        free(line_ptr);
+        line_ptr = NULL;
     }
 
     return head_data;
@@ -104,11 +123,11 @@ void free_data_struct_list(data_struct **list) {
     data_struct *data_to_free = *list;
     while (data_to_free) {
         data_struct *next = data_to_free->next;
-        free(data_to_free); // TODO: will need to free the time_struct_t before doing this
+        free_time_struct(&(data_to_free->time));
+        free(data_to_free);
         data_to_free = NULL;
         assert(data_to_free == NULL);
-        data_to_free = next; 
+        data_to_free = next;
     }
-
     return;
 }

@@ -15,6 +15,12 @@ void clear_and_realloc(void **ptr, size_t alloc_size) {
     return;
 }
 
+void free_time_struct(time_struct_t **time_struct) {
+    free(*time_struct);
+    *time_struct = NULL;
+    return;
+}
+
 time_struct_t *make_time(const char* buf) {
 
     time_struct_t *new_time = (time_struct_t *) malloc(sizeof(time_struct_t)); // TODO: free mem
@@ -71,6 +77,8 @@ time_struct_t *make_time(const char* buf) {
             }
         }
     }
+    free(int_storage);
+    int_storage = NULL;
     return new_time;
 
 }

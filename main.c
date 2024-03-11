@@ -26,20 +26,23 @@ int main(int argc, char** argv) {
     // MPI_Comm_size(MPI_COMM_WORLD, &num_cores);
 
     if (num_cores == 1) {
-        data_struct *new_data = read_data(fp, 100);
+        data_struct *new_data = read_data(fp, MAX_READS);
         data_struct *next = new_data;
-        for (int i=0;i < 100;i++) {
-            printf(
-                "time: %d-%d-%d %d:%d:%d, sentiment: %LF \n",
-                next->time->year,
-                next->time->month,
-                next->time->day,
-                next->time->hour,
-                next->time->minute,
-                next->time->seconds,
-                next->sentiment
-            );
-            next = next->next;
+        for (int i=0;i < MAX_READS;i++) {
+            if (next) {
+                printf(
+                    "%d) time: %d-%d-%d %d:%d:%d, sentiment: %LF \n",
+                    i,
+                    next->time->year,
+                    next->time->month,
+                    next->time->day,
+                    next->time->hour,
+                    next->time->minute,
+                    next->time->seconds,
+                    next->sentiment
+                );
+                next = next->next;
+            }
         }
         free_data_struct_list(&new_data); // Temporary free here for testing
     }

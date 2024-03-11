@@ -12,7 +12,7 @@
 
 typedef struct data_struct {
 
-    time_struct_t * time;
+    time_struct_t *time;
     long double sentiment;
     struct data_struct *next;
 
