@@ -35,11 +35,20 @@ void insert_key(key_list *key_list, char *key, size_t size) {
 
 void free_key_list(key_list **key_list) {
     my_key_t *curr = (*key_list)->head_key;
+    my_key_t *prev = NULL;
+
     while (curr) {
         free(curr->key);
         curr->key = NULL;
+        
+        prev = curr;
         curr = curr->next;
+
+        free(prev);
+        prev = NULL;
     }
+    free(*key_list);
+    *key_list = NULL;
     return;
 }
 
