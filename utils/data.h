@@ -19,24 +19,26 @@ typedef struct data_struct {
 } data_struct;
 
 
-typedef struct {
-    time_struct_t *sentiment_time;
-    long double sentiment;
-    
-    time_struct_t *happy_hour_time;
+typedef struct ret_struct {
+    char *happy_hour_time;
     long double happy_hour_sentiment;
+    
+    char *happy_day_time;
+    long double happy_day_sentiment;
 
-    time_struct_t *active_hour_time;
-    int most_tweets_hour_count;
+    char *active_hour_time;
+    int active_hour_count;
 
-    time_struct_t *active_day_time;
-    int most_tweets_day_count;
+    char *active_day_time;
+    int active_day_count;
 
 } ret_struct;
 
 ssize_t getline_clean(char **line_ptr, size_t *n, FILE *stream);
 data_struct *alloc_data_struct();
+ret_struct *alloc_ret_struct();
 data_struct *read_data(FILE *fp, int max_reads);
 void free_data_struct_list(data_struct **list);
+void free_ret_struct(ret_struct **ret);
 
 #endif

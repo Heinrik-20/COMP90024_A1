@@ -21,6 +21,24 @@ data_struct *alloc_data_struct() {
     return new_data;
 }
 
+ret_struct *alloc_ret_struct() {
+    
+    ret_struct *new_ret = (ret_struct *) malloc(sizeof(ret_struct));
+    assert(new_ret);
+
+    new_ret->happy_hour_time = (char *) malloc(sizeof(char) * HOUR_STR_LEN);
+    new_ret->happy_day_time = (char *) malloc(sizeof(char) * DATE_STR_LEN);
+    new_ret->active_hour_time = (char *) malloc(sizeof(char) * HOUR_STR_LEN);
+    new_ret->active_day_time = (char *) malloc(sizeof(char) * DATE_STR_LEN);
+
+    assert(new_ret->happy_hour_time);
+    assert(new_ret->happy_day_time);
+    assert(new_ret->active_hour_time);
+    assert(new_ret->active_day_time);
+
+    return new_ret;
+}
+
 data_struct *read_data(FILE *fp, int max_reads) {
 
     data_struct *head_data = NULL;
@@ -129,5 +147,24 @@ void free_data_struct_list(data_struct **list) {
         assert(data_to_free == NULL);
         data_to_free = next;
     }
+    return;
+}
+
+void free_ret_struct(ret_struct **ret) {
+
+    free((*ret)->happy_day_time);
+    (*ret)->happy_day_time = NULL;
+
+    free((*ret)->happy_hour_time);
+    (*ret)->happy_hour_time = NULL;
+
+    free((*ret)->active_day_time);
+    (*ret)->active_day_time = NULL;
+
+    free((*ret)->active_hour_time);
+    (*ret)->active_hour_time = NULL;
+
+    free(*ret);
+
     return;
 }

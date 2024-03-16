@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "utils/time_utils.h"
 #include "utils/data.h"
+#include "utils/analytics.h"
 
 #define MAX_READS 10000
 
@@ -19,7 +20,7 @@ int main(int argc, char** argv) {
     free(starting_line);
     starting_line = NULL;
 
-    // Initialise struct ret_struct *ret_struct
+    ret_struct *ret_struct = NULL;
     int my_id;
     int num_cores = 1;
     // MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
@@ -27,23 +28,12 @@ int main(int argc, char** argv) {
 
     if (num_cores == 1) {
         data_struct *new_data = read_data(fp, MAX_READS);
-        data_struct *next = new_data;
-        for (int i=0;i < MAX_READS;i++) {
-            if (next) {
-                printf(
-                    "%d) time: %d-%d-%d %d:%d:%d, sentiment: %LF \n",
-                    i,
-                    next->time->year,
-                    next->time->month,
-                    next->time->day,
-                    next->time->hour,
-                    next->time->minute,
-                    next->time->seconds,
-                    next->sentiment
-                );
-                next = next->next;
-            }
-        }
+        ret_struct = process_tweets(new_data);
+        printf("Most Happy Hour: %s, sentiment: %.2LF\n", ret_struct->happy_hour_time, ret_struct->happy_hour_sentiment);
+        printf("Most Happy Day: %s, sentiment: %.2LF\n", ret_struct->happy_day_time, ret_struct->happy_day_sentiment);
+        printf("Most Active Hour: %s, count: %d\n", ret_struct->active_hour_time, ret_struct->active_hour_count);
+        printf("Most Active Day: %s, count: %d\n", ret_struct->active_day_time, ret_struct->active_day_count);
+        free_ret_struct(&ret_struct);
         free_data_struct_list(&new_data); // Temporary free here for testing
     }
     else {

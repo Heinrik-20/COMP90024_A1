@@ -23,7 +23,7 @@ void free_time_struct(time_struct_t **time_struct) {
 
 time_struct_t *make_time(const char* buf) {
 
-    time_struct_t *new_time = (time_struct_t *) malloc(sizeof(time_struct_t)); // TODO: free mem
+    time_struct_t *new_time = (time_struct_t *) malloc(sizeof(time_struct_t));
     assert(new_time);
     char* int_storage = (char *) malloc(sizeof(char) * 5);
 
@@ -81,4 +81,25 @@ time_struct_t *make_time(const char* buf) {
     int_storage = NULL;
     return new_time;
 
+}
+
+char **time_struct_to_str(time_struct_t *time) {
+
+    char **ret_arr = (char **)malloc(sizeof(char *) * 2);
+    char *hour_str = (char *)malloc(sizeof(char) * HOUR_STR_LEN);
+    char *date_str = (char *)malloc(sizeof(char) * DATE_STR_LEN);
+    assert(hour_str);
+    assert(date_str);
+
+    sprintf(hour_str, "%d%.2d%.2d %.2d:00:00", time->year, time->month, time->day, time->hour);
+    sprintf(date_str, "%d%.2d%.2d", time->year, time->month, time->day);
+
+    hour_str[HOUR_STR_LEN - 1] = '\0';
+    date_str[DATE_STR_LEN - 1] = '\0';
+
+    ret_arr[0] = hour_str;
+    ret_arr[1] = date_str;
+
+    return ret_arr;
+    
 }
