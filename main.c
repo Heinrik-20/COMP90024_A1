@@ -19,8 +19,8 @@ int main(int argc, char **argv) {
     }
     int8_t end = 0;
     while (end != -1) {
-        int lineRecvLen;
-        char *lineReceived = malloc(size * sizeof(char));
+        int lineRecvLen = 0;
+        char *lineReceived;
         if (rank == 0) {
             // Skip first row
             char *starting_line = NULL;
@@ -30,25 +30,25 @@ int main(int argc, char **argv) {
 
             char **linesToSend = malloc(size * sizeof(char *));
             int *rowlens = malloc(size * sizeof(int));
-            int *displacements = malloc(size * sizeof(int));
+            int *displacements = calloc(size, sizeof(int));
+
             for (int i = 0; i < size; i++) {
                 linesToSend[i] = NULL;
                 rowlens[i] = 0;
-            }
-            for (int i = 0; i < size; i++) {
                 end = getline_clean(&linesToSend[i], &rowlen, fp);
+                rowlens[i] = (int) rowlen;
                 if (end == -1) break;
             }
 
             // figure out where each row begins and ends (prefix sum)
             displacements[0] = 0;
             for (int i = 1; i <= size; i++) {
-                displacements[i] = displacements[i - 1] + rowlens[i];
+                displacements[i] = displacements[i - 1] + rowlens[i - 1];
             }
-            printf("before scatter on rank %d\n", rank); // TODO: check pointers
             MPI_Scatter(rowlens, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
-            printf("Len of row to receive: %d\n", lineRecvLen);
-            MPI_Scatterv(&linesToSend, rowlens, displacements, MPI_CHAR, &lineReceived, lineRecvLen, MPI_CHAR, 0,
+            lineReceived = malloc(lineRecvLen * sizeof(char));
+
+            MPI_Scatterv(*linesToSend, rowlens, displacements, MPI_CHAR, &lineReceived, lineRecvLen, MPI_CHAR, 0,
                          MPI_COMM_WORLD);
             for (int i = 0; i < size; i++) {
                 free(linesToSend[i]);
@@ -57,9 +57,8 @@ int main(int argc, char **argv) {
             free(rowlens);
             free(displacements);
         } else {
-            printf("before scatter on rank %d\n", rank);
             MPI_Scatter(NULL, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
-            printf("Len of row to receive: %d\n", lineRecvLen);
+            lineReceived = malloc(lineRecvLen * sizeof(char));
             MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, &lineReceived, lineRecvLen, MPI_CHAR, 0, MPI_COMM_WORLD);
         }
         printf("Rank %d received line: %s \n", rank, lineReceived);
