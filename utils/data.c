@@ -39,6 +39,76 @@ ret_struct *alloc_ret_struct() {
     return new_ret;
 }
 
+data_struct *read_data_char(char *row, int length) {
+
+    data_struct *head_data = NULL;
+    data_struct *prev_data = NULL;
+    data_struct *new_data = NULL;
+
+    char *created_at = strstr(row, "\"created_at\":");
+    char time_storage[20];
+    char *sentiment = NULL;
+    char sentiment_storage[MAX_CHAR];
+    int index = 0, valid_time = 0;
+
+    while (created_at) {
+        memcpy(time_storage, created_at + 14, 20);
+        time_storage[19] = '\0';
+        valid_time = 1; // To check if we can find any missing dates
+        created_at += 14;
+
+        if ((sentiment = strstr(created_at, "\"sentiment\":"))) {
+            sentiment += 12;
+
+            if (sentiment[0] == '-') {
+                sentiment_storage[0] = '-';
+                index += 1;
+            }
+            
+            while ((isdigit(sentiment[index])) || (sentiment[index] == '.')) {
+                sentiment_storage[index] = sentiment[index];
+                index += 1;
+            }
+
+            if (index == 0) {
+                // Indicate that there was no read of the sentiment.
+                sentiment_storage[0] = '-';
+                sentiment_storage[1] = '9';
+                sentiment_storage[2] = '9';
+                sentiment_storage[3] = '9';
+                sentiment_storage[4] = '9';
+                index = 5;
+            }
+        } else {
+            // Indicate that there was no read of the sentiment.
+            sentiment_storage[0] = '-';
+            sentiment_storage[1] = '9';
+            sentiment_storage[2] = '9';
+            sentiment_storage[3] = '9';
+            sentiment_storage[4] = '9';
+            index = 5;
+
+        }
+        sentiment_storage[index] = '\0';
+
+        if (valid_time) { // No point making conversion when tweet is not valid
+            new_data = alloc_data_struct();
+            new_data->time = make_time(time_storage);
+            new_data->sentiment = strtold(sentiment_storage, NULL);
+            if (prev_data) {
+                prev_data->next = new_data;
+            } else {
+                head_data = new_data;
+            }
+            prev_data = new_data;
+            new_data = NULL;
+        }
+        index = 0;
+        created_at = strstr(created_at, "\"created_at\":");
+    }
+    return head_data;
+}
+
 data_struct *read_data(FILE *fp, int max_reads) {
 
     data_struct *head_data = NULL;

@@ -37,6 +37,7 @@ typedef struct ret_struct {
 ssize_t getline_clean(char **line_ptr, size_t *n, FILE *stream);
 data_struct *alloc_data_struct();
 ret_struct *alloc_ret_struct();
+data_struct *read_data_char(char *row, int length);
 data_struct *read_data(FILE *fp, int max_reads);
 void free_data_struct_list(data_struct **list);
 void free_ret_struct(ret_struct **ret);

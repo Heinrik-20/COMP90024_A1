@@ -64,7 +64,7 @@ ret_struct *process_tweets(data_struct *data) {
     ht_setup(&active_hour, HOUR_STR_LEN, sizeof(int), HT_MINIMUM_CAPACITY);
     ht_setup(&active_day, DATE_STR_LEN, sizeof(int), HT_MINIMUM_CAPACITY);
 
-    key_list *happy_hour_keys = alloc_key_list(); // TODO: free mem
+    key_list *happy_hour_keys = alloc_key_list();
     key_list *happy_day_keys = alloc_key_list();
     key_list *active_hour_keys = alloc_key_list();
     key_list *active_day_keys = alloc_key_list();
