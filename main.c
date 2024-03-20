@@ -47,7 +47,6 @@ int main(int argc, char **argv) {
             }
             MPI_Scatter(rowlens, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
             lineReceived = malloc(lineRecvLen * sizeof(char));
-
             MPI_Scatterv(*linesToSend, rowlens, displacements, MPI_CHAR, &lineReceived, lineRecvLen, MPI_CHAR, 0,
                          MPI_COMM_WORLD);
             for (int i = 0; i < size; i++) {
