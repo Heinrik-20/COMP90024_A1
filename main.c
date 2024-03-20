@@ -6,39 +6,79 @@
 
 #define MAX_READS 10000
 
-int main(int argc, char** argv) {
-
-    // Initialise struct key_stats *key_stats
-
-    int ierr, total_reads;
-    size_t size = 0;
-    FILE *fp = fopen(argv[1], "r"); // We will need to make sure of a certain format to use argv[1], please run in this format: mpirun -np 1 ./build/main ../data/twitter-1mb.json
-    // ierr = MPI_Init(&argc, &argv);
-
-    char *starting_line = NULL;
-    getline_clean(&starting_line, &size, fp); // TODO: please make sure to read in rows from this string!!!
-    free(starting_line);
-    starting_line = NULL;
-
-    ret_struct *ret_struct = NULL;
-    int my_id;
-    int num_cores = 1;
-    // MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
-    // MPI_Comm_size(MPI_COMM_WORLD, &num_cores);
-
-    if (num_cores == 1) {
-        data_struct *new_data = read_data(fp, MAX_READS);
-        ret_struct = process_tweets(new_data);
-        printf("Most Happy Hour: %s, sentiment: %.2LF\n", ret_struct->happy_hour_time, ret_struct->happy_hour_sentiment);
-        printf("Most Happy Day: %s, sentiment: %.2LF\n", ret_struct->happy_day_time, ret_struct->happy_day_sentiment);
-        printf("Most Active Hour: %s, count: %d\n", ret_struct->active_hour_time, ret_struct->active_hour_count);
-        printf("Most Active Day: %s, count: %d\n", ret_struct->active_day_time, ret_struct->active_day_count);
-        free_ret_struct(&ret_struct);
-        free_data_struct_list(&new_data); // Temporary free here for testing
+int main(int argc, char **argv) {
+    MPI_Init(&argc, &argv);
+    int rank;
+    int size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    FILE *fp = NULL;
+    size_t rowlen = 0;
+    if (rank == 0) {
+        fp = fopen(argv[1], "r");
     }
-    else {
-        // Multiple cores to work on processing data
+    int8_t end = 0;
+    while (end != -1) {
+        int lineRecvLen;
+        char *lineReceived = malloc(size * sizeof(char));
+        if (rank == 0) {
+            // Skip first row
+            char *starting_line = NULL;
+            getline_clean(&starting_line, &rowlen, fp);
+            free(starting_line);
+            starting_line = NULL;
+
+            char **linesToSend = malloc(size * sizeof(char *));
+            int *rowlens = malloc(size * sizeof(int));
+            int *displacements = malloc(size * sizeof(int));
+            for (int i = 0; i < size; i++) {
+                linesToSend[i] = NULL;
+                rowlens[i] = 0;
+            }
+            for (int i = 0; i < size; i++) {
+                end = getline_clean(&linesToSend[i], &rowlen, fp);
+                if (end == -1) break;
+            }
+
+            // figure out where each row begins and ends (prefix sum)
+            displacements[0] = 0;
+            for (int i = 1; i <= size; i++) {
+                displacements[i] = displacements[i - 1] + rowlens[i];
+            }
+            printf("before scatter on rank %d\n", rank); // TODO: check pointers
+            MPI_Scatter(rowlens, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            printf("Len of row to receive: %d\n", lineRecvLen);
+            MPI_Scatterv(&linesToSend, rowlens, displacements, MPI_CHAR, &lineReceived, lineRecvLen, MPI_CHAR, 0,
+                         MPI_COMM_WORLD);
+            for (int i = 0; i < size; i++) {
+                free(linesToSend[i]);
+            }
+            free(linesToSend);
+            free(rowlens);
+            free(displacements);
+        } else {
+            printf("before scatter on rank %d\n", rank);
+            MPI_Scatter(NULL, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
+            printf("Len of row to receive: %d\n", lineRecvLen);
+            MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, &lineReceived, lineRecvLen, MPI_CHAR, 0, MPI_COMM_WORLD);
+        }
+        printf("Rank %d received line: %s \n", rank, lineReceived);
+        free(lineReceived);
     }
+
+
+
+//    ret_struct *ret_struct = NULL;
+//
+//    printf("rank:%d of %d\n", rank, wsize);
+//    data_struct *new_data = read_data(fp, MAX_READS);
+//    ret_struct = process_tweets(new_data);
+//    printf("Most Happy Hour: %s, sentiment: %.2LF\n", ret_struct->happy_hour_time, ret_struct->happy_hour_sentiment);
+//    printf("Most Happy Day: %s, sentiment: %.2LF\n", ret_struct->happy_day_time, ret_struct->happy_day_sentiment);
+//    printf("Most Active Hour: %s, count: %d\n", ret_struct->active_hour_time, ret_struct->active_hour_count);
+//    printf("Most Active Day: %s, count: %d\n", ret_struct->active_day_time, ret_struct->active_day_count);
+//    free_ret_struct(&ret_struct);
+//    free_data_struct_list(&new_data); // Temporary free here for testing
 
     fclose(fp);
     // MPI_Finalize();

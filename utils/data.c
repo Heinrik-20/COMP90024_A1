@@ -1,14 +1,14 @@
 #include <assert.h>
 #include "data.h"
 
-ssize_t getline_clean(char **line_ptr, size_t *n, FILE *stream){
-	ssize_t ret_val = getline(line_ptr, n, stream); // reallocs if line is too long
-    if(ret_val != (-1) && strlen(*line_ptr) > 0 && 
-       (*line_ptr)[strlen(*line_ptr) - 1] == '\n'){
+ssize_t getline_clean(char **line_ptr, size_t *n, FILE *stream) {
+    ssize_t ret_val = getline(line_ptr, n, stream); // reallocs if line is too long
+    if (ret_val != (-1) && strlen(*line_ptr) > 0 &&
+        (*line_ptr)[strlen(*line_ptr) - 1] == '\n') {
         (*line_ptr)[strlen(*line_ptr) - 1] = '\0';
     }
-    if(ret_val != (-1) && strlen(*line_ptr) > 0 && 
-       (*line_ptr)[strlen(*line_ptr) - 1] == '\r'){
+    if (ret_val != (-1) && strlen(*line_ptr) > 0 &&
+        (*line_ptr)[strlen(*line_ptr) - 1] == '\r') {
         (*line_ptr)[strlen(*line_ptr) - 1] = '\0';
     }
     return ret_val;
@@ -22,7 +22,7 @@ data_struct *alloc_data_struct() {
 }
 
 ret_struct *alloc_ret_struct() {
-    
+
     ret_struct *new_ret = (ret_struct *) malloc(sizeof(ret_struct));
     assert(new_ret);
 
@@ -54,7 +54,7 @@ data_struct *read_data(FILE *fp, int max_reads) {
     int index = 0, valid_time = 0;
     size_t size = 0;
 
-    for (int counter = 0; counter < max_reads; counter ++) {
+    for (int counter = 0; counter < max_reads; counter++) {
         // The getline_clean() calls here will start from the second line onwards
         // From here onwards, all getline_clean() calls will only read the json lines
         if (getline_clean(&line_ptr, &size, fp) != (-1)) {
@@ -72,7 +72,7 @@ data_struct *read_data(FILE *fp, int max_reads) {
                     sentiment_storage[0] = '-';
                     index += 1;
                 }
-                
+
                 while ((isdigit(sentiment[index])) || (sentiment[index] == '.')) {
                     sentiment_storage[index] = sentiment[index];
                     index += 1;
@@ -120,7 +120,7 @@ data_struct *read_data(FILE *fp, int max_reads) {
                 prev_data = new_data;
                 new_data = temp;
             }
-        } else if ((counter == max_reads - 1) && (!valid_time)){
+        } else if ((counter == max_reads - 1) && (!valid_time)) {
             free(prev_data->next);
             prev_data->next = NULL;
         } else {
