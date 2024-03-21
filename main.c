@@ -46,8 +46,12 @@ int main(int argc, char **argv) {
                 rowlens[i] = 0;
                 end = getline_clean(&linesToSend[i], &rowlen, fp);
                 rowlens[i] = (int) rowlen;
-                ended_size = i + 1;
-                if (end == -1) break;
+                if (end == -1) {
+                    ended_size = i;
+                    break;
+                } else {
+                    ended_size = i + 1;
+                }
             }
 
             // figure out where each row begins and ends (prefix sum)
@@ -62,13 +66,28 @@ int main(int argc, char **argv) {
                 memcpy(string_to_send + displacements[i], linesToSend[i], rowlens[i]);
             }
 
+            if (ended_size < size) {
+                for (int i=ended_size;i < size;i++) {
+                    displacements[i] = -1;
+                    rowlens[i] = 0;
+
+                    free(linesToSend[i]);
+                    linesToSend[i] = NULL;
+
+                    printf("Ended size less than total size\n");
+                }
+            }
+
             MPI_Scatter(rowlens, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
             lineReceived = malloc(lineRecvLen * sizeof(char));
+            assert(lineReceived);
             MPI_Scatterv(string_to_send, rowlens, displacements, MPI_CHAR, lineReceived, lineRecvLen, MPI_CHAR, 0,
                          MPI_COMM_WORLD);
 
             for (int i = 0; i < size && i < ended_size; i++) {
                 free(linesToSend[i]);
+                linesToSend[i] = NULL;
             }
 
             free(linesToSend);
@@ -77,7 +96,7 @@ int main(int argc, char **argv) {
             free(string_to_send);
             string_to_send = NULL;
 
-            free(rowlens);
+            free(rowlens);  
             rowlens = NULL;
 
             free(displacements);
@@ -85,8 +104,14 @@ int main(int argc, char **argv) {
 
             free(lineReceived);
             lineReceived = NULL;
+
         } else {
             MPI_Scatter(NULL, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+            if (lineRecvLen == 0) {
+                break;
+            }
+
             lineReceived = malloc(lineRecvLen * sizeof(char));
             assert(lineReceived);
 
