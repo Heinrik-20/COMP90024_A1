@@ -102,8 +102,6 @@ int main(int argc, char **argv) {
             free(displacements);
             displacements = NULL;
 
-            free(lineReceived);
-            lineReceived = NULL;
 
         } else {
             MPI_Scatter(NULL, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -116,28 +114,41 @@ int main(int argc, char **argv) {
             assert(lineReceived);
 
             MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, lineReceived, lineRecvLen, MPI_CHAR, 0, MPI_COMM_WORLD);
-            free(lineReceived);
-            lineReceived = NULL;
         }
+        
+        /**
+         *  TODO: Deal with line received information
+         */
+        
+        free(lineReceived);
+        lineReceived = NULL;
         
     }
 
+    /**
+     *  TODO: Send Hashtable back to ROOT 
+     *      1. Implement ht_to_string()
+     */
+
     if (rank == 0) {
-        printf("Im here\n");
+        
+        /**
+         * TODO: Handle strings and store informations
+         *      1. Implement string_to_ht()
+         *      2. Store additional new keys, and new scores (sentiment score or active counts)
+         *      3. Aggregate and find_most();
+         *      4. Clean up hashtable and linkedlist of keys
+        */
+
         fclose(fp);
+    } else {
+        /**
+         * TODO: Handle strings and store informations
+         *      1. Clean up hashtable and linkedlist of keys
+        */
     }
 
     MPI_Finalize();
     return 0;
-//    ret_struct *ret_struct = NULL;
-//
-//    printf("rank:%d of %d\n", rank, wsize);
-//    data_struct *new_data = read_data(fp, MAX_READS);
-//    ret_struct = process_tweets(new_data);
-//    printf("Most Happy Hour: %s, sentiment: %.2LF\n", ret_struct->happy_hour_time, ret_struct->happy_hour_sentiment);
-//    printf("Most Happy Day: %s, sentiment: %.2LF\n", ret_struct->happy_day_time, ret_struct->happy_day_sentiment);
-//    printf("Most Active Hour: %s, count: %d\n", ret_struct->active_hour_time, ret_struct->active_hour_count);
-//    printf("Most Active Day: %s, count: %d\n", ret_struct->active_day_time, ret_struct->active_day_count);
-//    free_ret_struct(&ret_struct);
-//    free_data_struct_list(&new_data); // Temporary free here for testing
+
 }
