@@ -7,7 +7,12 @@
 #define MAX_READS 10000
 
 int main(int argc, char **argv) {
+
     MPI_Init(&argc, &argv);
+
+    HashTable **hash_tables = all_ht_setup(); // This ensures that the proper order of the Hashtables
+    key_list **all_keys = all_keys_setup();
+
     int rank;
     int size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -15,9 +20,12 @@ int main(int argc, char **argv) {
     FILE *fp = NULL;
     size_t rowlen = 0;
     int skipped_first = 0;
+
     if (rank == 0) {
         fp = fopen(argv[1], "r");
     }
+
+    data_struct *data = NULL;
     int end = 0;
     int ended_size = -1;
     while (end != -1) {
@@ -69,7 +77,7 @@ int main(int argc, char **argv) {
             if (ended_size < size) {
                 for (int i=ended_size;i < size;i++) {
                     displacements[i] = -1;
-                    rowlens[i] = 0;
+                    rowlens[i] = -1;
 
                     free(linesToSend[i]);
                     linesToSend[i] = NULL;
@@ -106,7 +114,7 @@ int main(int argc, char **argv) {
         } else {
             MPI_Scatter(NULL, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-            if (lineRecvLen == 0) {
+            if (lineRecvLen == -1) {
                 break;
             }
 
@@ -118,8 +126,13 @@ int main(int argc, char **argv) {
         
         /**
          *  TODO: Deal with line received information
+         *      1. convert to data_struct
+         *      2. Store into hashtable
          */
         
+        data = read_data_char(lineReceived, lineRecvLen);
+        process_tweet_data(hash_tables, all_keys, data);
+
         free(lineReceived);
         lineReceived = NULL;
         
@@ -129,6 +142,7 @@ int main(int argc, char **argv) {
      *  TODO: Send Hashtable back to ROOT 
      *      1. Implement ht_to_string()
      */
+    
 
     if (rank == 0) {
         

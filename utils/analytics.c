@@ -19,6 +19,44 @@ key_list *alloc_key_list() {
     return new;
 }
 
+key_list **all_keys_setup() {
+
+    key_list *happy_hour_keys = alloc_key_list();
+    key_list *happy_day_keys = alloc_key_list();
+    key_list *active_hour_keys = alloc_key_list();
+    key_list *active_day_keys = alloc_key_list();
+
+    key_list **key_lists = {
+        happy_hour_keys, happy_day_keys, active_hour_keys, active_day_keys
+    };
+
+    return key_lists;
+}
+
+HashTable **all_ht_setup() {
+
+    HashTable *happy_hour;
+    HashTable *happy_day;
+    HashTable *active_hour;
+    HashTable *active_day;
+
+    ht_setup(happy_hour, HOUR_STR_LEN, sizeof(long double), HT_MINIMUM_CAPACITY);
+    ht_setup(happy_day, DATE_STR_LEN, sizeof(long double), HT_MINIMUM_CAPACITY);
+    ht_setup(active_hour, HOUR_STR_LEN, sizeof(int), HT_MINIMUM_CAPACITY);
+    ht_setup(active_day, DATE_STR_LEN, sizeof(int), HT_MINIMUM_CAPACITY);
+
+    HashTable **hash_tables = {
+        happy_hour, happy_day, active_hour, active_day
+    };
+
+    return hash_tables;
+
+}
+
+void destroy_all_ht (HashTable *hts) {
+
+}
+
 void insert_key(key_list *key_list, char *key, size_t size) {
     if (key_list->head_key) {
         my_key_t *new = alloc_one_key(size);
@@ -50,6 +88,52 @@ void free_key_list(key_list **key_list) {
     free(*key_list);
     *key_list = NULL;
     return;
+}
+
+void process_tweet_data(HashTable **ht, key_list **keys, data_struct *data) {
+
+    // Below pointer locations for ht and keys, have to be brute-forced
+    HashTable *happy_hour = ht[0];
+    HashTable *happy_day = ht[1];
+    HashTable *active_hour = ht[2];
+    HashTable *active_day = ht[3];
+
+    key_list *happy_hour_keys = keys[0];
+    key_list *happy_day_keys = keys[1];
+    key_list *active_hour_keys = keys[2];
+    key_list *active_day_keys = keys[3];
+
+    data_struct *curr = data;
+    int temp_int = 1;
+
+    while (curr) {
+        char **time_strings = time_struct_to_str(curr->time);
+        if (curr == data) {
+            if (curr->sentiment > -9990) {
+                update_ht_and_key(happy_hour, happy_hour_keys, time_strings[0], &(curr->sentiment), 1);
+                update_ht_and_key(happy_day, happy_day_keys, time_strings[1], &(curr->sentiment), 1);
+            }
+            update_ht_and_key(active_hour, active_hour_keys, time_strings[0], &temp_int, 0);
+            update_ht_and_key(active_day, active_day_keys, time_strings[1], &temp_int, 0);
+        } else {
+            if (curr->sentiment > -9990) {
+                update_ht_and_key(happy_hour, happy_hour_keys, time_strings[0], &(curr->sentiment), 1);
+                update_ht_and_key(happy_day, happy_day_keys, time_strings[1], &(curr->sentiment), 1);
+            }
+            update_ht_and_key(active_hour, active_hour_keys, time_strings[0], NULL, 0);
+            update_ht_and_key(active_day, active_day_keys, time_strings[1], NULL, 0);
+        }
+
+        free(time_strings[0]);
+        free(time_strings[1]);
+        time_strings[0] = NULL;
+        time_strings[1] = NULL;
+
+        free(time_strings);
+        time_strings = NULL;
+
+        curr = curr->next;
+    }
 }
 
 ret_struct *process_tweets(data_struct *data) {
