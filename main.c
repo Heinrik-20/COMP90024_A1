@@ -1,5 +1,6 @@
-#include <mpi.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
 #include "utils/time_utils.h"
 #include "utils/data.h"
 #include "utils/analytics.h"
@@ -76,11 +77,8 @@ int main(int argc, char **argv) {
 
             if (ended_size < size) {
                 for (int i=ended_size;i < size;i++) {
-                    displacements[i] = -1;
-                    rowlens[i] = -1;
-
-                    free(linesToSend[i]);
-                    linesToSend[i] = NULL;
+                    displacements[i] = 0;
+                    rowlens[i] = 0;
 
                     printf("Ended size less than total size\n");
                 }
@@ -88,8 +86,17 @@ int main(int argc, char **argv) {
 
             MPI_Scatter(rowlens, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+            if (lineRecvLen == -1) {
+                break;
+            }
+
             lineReceived = malloc(lineRecvLen * sizeof(char));
             assert(lineReceived);
+
+            /**
+             * TODO: need to refactor this to account for zero lengths, error occurs when there is nothing to send across to the other nodes.
+             * 
+            */
             MPI_Scatterv(string_to_send, rowlens, displacements, MPI_CHAR, lineReceived, lineRecvLen, MPI_CHAR, 0,
                          MPI_COMM_WORLD);
 
@@ -114,7 +121,7 @@ int main(int argc, char **argv) {
         } else {
             MPI_Scatter(NULL, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-            if (lineRecvLen == -1) {
+            if (lineRecvLen == 0) {
                 break;
             }
 
@@ -129,12 +136,13 @@ int main(int argc, char **argv) {
          *      1. convert to data_struct
          *      2. Store into hashtable
          */
-        
         data = read_data_char(lineReceived, lineRecvLen);
         process_tweet_data(hash_tables, all_keys, data);
 
         free(lineReceived);
         lineReceived = NULL;
+        free_data_struct_list(&data);
+        data = NULL;
         
     }
 
@@ -146,8 +154,8 @@ int main(int argc, char **argv) {
     MPI_Datatype sentiment_node, count_node;
     MPI_Datatype sentiment_hour_arr, sentiment_day_arr, count_hour_arr, count_day_arr;
     MPI_Datatype list_size_arr;
-    MPI_Datatype sentiment_types[2] = {MPI_LONG_DOUBLE, MPI_CHAR}, count_types = {MPI_INT, MPI_CHAR};
-    int lengths = {1, HOUR_STR_LEN}; // Here we just use the longest string we can find
+    MPI_Datatype sentiment_types[2] = {MPI_LONG_DOUBLE, MPI_CHAR}, count_types[2] = {MPI_INT, MPI_CHAR};
+    int lengths[] = {1, HOUR_STR_LEN}; // Here we just use the longest string we can find
     MPI_Aint displacements[2];
 
     MPI_Sentiment_node dummy_sentiment;
@@ -173,7 +181,7 @@ int main(int argc, char **argv) {
 
     MPI_Type_create_struct(2, lengths, displacements, count_types, &count_node);
     MPI_Type_commit(&count_node);
-
+    
     MPI_Type_contiguous(hash_tables[0]->size, sentiment_node, &sentiment_hour_arr);
     MPI_Type_commit(&sentiment_hour_arr);
     MPI_Type_contiguous(hash_tables[1]->size, sentiment_node, &sentiment_day_arr);
@@ -185,11 +193,11 @@ int main(int argc, char **argv) {
 
     int list_sizes[] = {hash_tables[0]->size, hash_tables[1]->size, hash_tables[2]->size, hash_tables[3]->size};
     MPI_Type_contiguous(4, MPI_INT, &list_size_arr);
+    MPI_Type_commit(&list_size_arr);
 
     MPI_Items *items_to_send = all_ht_to_lists(hash_tables, all_keys);
 
     if (rank == 0) {
-        
         /**
          * TODO: Handle strings and store informations
          *      1. Implement string_to_ht()
@@ -202,7 +210,11 @@ int main(int argc, char **argv) {
         MPI_Count_node *temp_active_hour;
         MPI_Count_node *temp_active_day;
         for (int i=1;i < size;i++) {
-            MPI_Recv(list_sizes, 1, list_size_arr, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(list_sizes, 1, list_size_arr, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            temp_happy_hour = (MPI_Sentiment_node *)malloc(sizeof(MPI_Sentiment_node) * list_sizes[0]);
+            temp_happy_day = (MPI_Sentiment_node *)malloc(sizeof(MPI_Sentiment_node) * list_sizes[1]);
+            temp_active_hour = (MPI_Count_node *)malloc(sizeof(MPI_Count_node) * list_sizes[2]);
+            temp_active_day = (MPI_Count_node *)malloc(sizeof(MPI_Count_node) * list_sizes[3]);
             MPI_Recv(temp_happy_hour, 1, sentiment_hour_arr, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(temp_happy_day, 1, sentiment_day_arr, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(temp_active_hour, 1, count_hour_arr, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -212,10 +224,14 @@ int main(int argc, char **argv) {
             /**
              * This needs to be in the form fn(root_hashtable, root_keys, data_type, void *node_type)
             */
-            consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *)temp_happy_hour, list_sizes[0]);    
-            consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *)temp_happy_day, list_sizes[1]);    
-            consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *)temp_active_hour, list_sizes[2]);    
+            consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *)temp_happy_hour, list_sizes[0]); 
+            consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *)temp_happy_day, list_sizes[1]);
+            consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *)temp_active_hour, list_sizes[2]);
             consolidate_child_data(hash_tables[3], all_keys[3], 0, (void *)temp_active_day, list_sizes[3]);
+            free(temp_happy_hour);
+            free(temp_happy_day);
+            free(temp_active_hour);
+            free(temp_active_day);
         
         }
         char *final_happy_hour = (char *) malloc(sizeof(char) * HOUR_STR_LEN);
@@ -224,14 +240,13 @@ int main(int argc, char **argv) {
         char *final_active_day = (char *) malloc(sizeof(char) * DATE_STR_LEN);
         find_most(hash_tables[0], all_keys[0], final_happy_hour, 1);
         find_most(hash_tables[1], all_keys[1], final_happy_day, 1);
-        find_most(hash_tables[2], all_keys[2], final_active_hour, 1);
-        find_most(hash_tables[3], all_keys[3], final_active_day, 1);
+        find_most(hash_tables[2], all_keys[2], final_active_hour, 0);
+        find_most(hash_tables[3], all_keys[3], final_active_day, 0);
 
         printf("Most Happy Hour: %s, sentiment: %.2LF\n", final_happy_hour, *(long double *)ht_lookup(hash_tables[0], final_happy_hour));
         printf("Most Happy Day: %s, sentiment: %.2LF\n", final_happy_day, *(long double *)ht_lookup(hash_tables[1], final_happy_day));
         printf("Most Active Hour: %s, count: %d\n", final_active_hour, *(int *)ht_lookup(hash_tables[2], final_active_hour));
         printf("Most Active Day: %s, count: %d\n", final_active_day, *(int *)ht_lookup(hash_tables[3], final_active_day));
-
 
         fclose(fp);
     } else {
@@ -245,7 +260,6 @@ int main(int argc, char **argv) {
         MPI_Send(items_to_send->happy_day, 1, sentiment_day_arr, 0, 0, MPI_COMM_WORLD);
         MPI_Send(items_to_send->active_hour, 1, count_hour_arr, 0, 0, MPI_COMM_WORLD);
         MPI_Send(items_to_send->active_day, 1, count_day_arr, 0, 0, MPI_COMM_WORLD);
-
     }
 
     MPI_Finalize();

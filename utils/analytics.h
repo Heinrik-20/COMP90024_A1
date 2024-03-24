@@ -22,12 +22,12 @@ typedef struct key_list {
 } key_list;
 
 typedef struct MPI_Sentiment_node {
-    char *key;
+    char key[HOUR_STR_LEN];
     long double sentiment;
 } MPI_Sentiment_node;
 
 typedef struct MPI_Count_node {
-    char *key;
+    char key[HOUR_STR_LEN];
     int count;
 } MPI_Count_node;
 
