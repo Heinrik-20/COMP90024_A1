@@ -26,9 +26,12 @@ key_list **all_keys_setup() {
     key_list *active_hour_keys = alloc_key_list();
     key_list *active_day_keys = alloc_key_list();
 
-    key_list **key_lists = {
-        happy_hour_keys, happy_day_keys, active_hour_keys, active_day_keys
-    };
+    key_list **key_lists = (key_list **)malloc(sizeof(key_list *) * 4);
+    assert(key_lists);
+    key_lists[0] = happy_hour_keys;
+    key_lists[1] = happy_day_keys;
+    key_lists[2] = active_hour_keys;
+    key_lists[3] = active_day_keys;
 
     return key_lists;
 }
@@ -45,15 +48,21 @@ HashTable **all_ht_setup() {
     ht_setup(active_hour, HOUR_STR_LEN, sizeof(int), HT_MINIMUM_CAPACITY);
     ht_setup(active_day, DATE_STR_LEN, sizeof(int), HT_MINIMUM_CAPACITY);
 
-    HashTable **hash_tables = {
-        happy_hour, happy_day, active_hour, active_day
-    };
+    HashTable **hash_tables = (HashTable **) malloc(sizeof(HashTable *) * 4);
+    assert(hash_tables);
+    hash_tables[0] = happy_hour;
+    hash_tables[1] = happy_day;
+    hash_tables[2] = active_hour;
+    hash_tables[3] = active_day;
 
     return hash_tables;
 
 }
 
 void destroy_all_ht (HashTable *hts) {
+    /**
+     * TODO: implement to clean up hashtables
+    */
 
 }
 
@@ -134,6 +143,81 @@ void process_tweet_data(HashTable **ht, key_list **keys, data_struct *data) {
 
         curr = curr->next;
     }
+}
+
+MPI_Items *all_ht_to_lists(HashTable **hash_tables, key_list **key_lists) {
+
+    HashTable *happy_hour = hash_tables[0];
+    HashTable *happy_day = hash_tables[1];
+    HashTable *active_hour = hash_tables[2];
+    HashTable *active_day = hash_tables[3];
+
+    key_list *happy_hour_keys = key_lists[0];
+    key_list *happy_day_keys = key_lists[1];
+    key_list *active_hour_keys = key_lists[2];
+    key_list *active_day_keys = key_lists[3];
+
+    MPI_Items *ret = (MPI_Items *)malloc (sizeof(MPI_Items));
+    assert(ret);
+    ret->happy_hour = NULL;
+    ret->happy_day = NULL;
+    ret->active_hour = NULL;
+    ret->active_day = NULL;
+
+    ret->happy_hour = (MPI_Sentiment_node *) ht_to_list(happy_hour, happy_hour_keys, 1);
+    ret->happy_day = (MPI_Sentiment_node *) ht_to_list(happy_day, happy_day_keys, 1);
+    ret->active_hour = (MPI_Count_node *) ht_to_list(active_hour, active_hour_keys, 1);
+    ret->active_day = (MPI_Count_node *) ht_to_list(active_day, active_day_keys, 1);
+
+    return ret;
+}
+
+void *ht_to_list(HashTable *ht, key_list *key_list, int item_type) { // 1 for sentiment, 0 for count
+
+    if (item_type) {
+        MPI_Sentiment_node *ret_node = (MPI_Sentiment_node *)malloc(sizeof(MPI_Sentiment_node) * ht->size); // Malloc provides contiguous blocks
+        my_key_t *curr = key_list->head_key;
+        int i = 0;
+        while (curr) {
+            ret_node[i].key = (char *)malloc(sizeof(char) * ht->key_size);
+            memcpy(ret_node[i].key, curr->key, ht->key_size);
+            ret_node[i].sentiment = *(long double *)ht_lookup(ht, curr->key);
+            curr = curr->next;
+        }
+        return (void *)ret_node;
+    } else {
+        MPI_Count_node *ret_node = (MPI_Count_node *)malloc(sizeof(MPI_Count_node) * ht->size); // Malloc provides contiguous blocks
+        my_key_t *curr = key_list->head_key;
+        int i = 0;
+        while (curr) {
+            ret_node[i].key = (char *)malloc(sizeof(char) * ht->key_size);
+            memcpy(ret_node[i].key, curr->key, ht->key_size);
+            ret_node[i].count = *(int *)ht_lookup(ht, curr->key);
+            curr = curr->next;
+        }
+        return (void *)ret_node;
+    }
+    
+}
+
+void consolidate_child_data(HashTable *ht, key_list *keys, int score_type, void *node, int list_size) {
+    // time_type = 0 -> hour, time_type = 1 -> day, score_type = 1 -> sentiment, score_type = 0 -> count
+
+    if (score_type) {
+        MPI_Sentiment_node *head = (MPI_Sentiment_node *) node;
+        for (int i=0;i < list_size;i++) {
+            update_ht_and_key(ht, keys, head->key, (void *)&head->sentiment, 1);
+            head += 1;
+        }
+
+    } else {
+        MPI_Count_node *head = (MPI_Count_node *) node;
+        for (int i=0;i < list_size;i++) {
+            update_ht_and_key(ht, keys, head->key, (void *)&head->count, 0);
+        }
+    }
+    return;
+
 }
 
 ret_struct *process_tweets(data_struct *data) {
