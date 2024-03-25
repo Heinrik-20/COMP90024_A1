@@ -7,7 +7,7 @@ module purge
 
 module load foss/2022a
 
-srun -n 3 ./build/main ./data/twitter-1mb.json
+srun -n 4 ./build/main ./data/twitter-1mb.json
 
 ##DO NOT ADD/EDIT BEYOND THIS LINE##
 ##Job monitor command to list the resource usage
