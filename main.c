@@ -241,6 +241,7 @@ int main(int argc, char **argv) {
         temp_happy_day = (MPI_Sentiment_node *) malloc(sizeof(MPI_Sentiment_node) * temp_sizes[1]);
         temp_active_hour = (MPI_Count_node *) malloc(sizeof(MPI_Count_node) * temp_sizes[2]);
         temp_active_day = (MPI_Count_node *) malloc(sizeof(MPI_Count_node) * temp_sizes[3]);
+        // TODO: check either datatype or count, consider refactoring to gatherv
         MPI_Gather(items_to_send->happy_hour, 1, sentiment_hour_arr,
                    temp_happy_hour, 1, sentiment_hour_arr,
                    0, MPI_COMM_WORLD);
