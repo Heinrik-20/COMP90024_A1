@@ -1,10 +1,10 @@
 #include "analytics.h"
 
 my_key_t *alloc_one_key(size_t key_size) {
-    my_key_t *new = (my_key_t *)malloc(sizeof(my_key_t));
+    my_key_t *new = (my_key_t *) malloc(sizeof(my_key_t));
     assert(new);
-    
-    new->key = (char *)malloc(sizeof(char) * key_size);
+
+    new->key = (char *) malloc(sizeof(char) * key_size);
     assert(new->key);
 
     new->next = NULL;
@@ -12,7 +12,7 @@ my_key_t *alloc_one_key(size_t key_size) {
 }
 
 key_list *alloc_key_list() {
-    key_list *new = (key_list *)malloc(sizeof(key_list));
+    key_list *new = (key_list *) malloc(sizeof(key_list));
     assert(new);
     new->head_key = NULL;
     new->tail_key = NULL;
@@ -26,7 +26,7 @@ key_list **all_keys_setup() {
     key_list *active_hour_keys = alloc_key_list();
     key_list *active_day_keys = alloc_key_list();
 
-    key_list **key_lists = (key_list **)malloc(sizeof(key_list *) * 4);
+    key_list **key_lists = (key_list **) malloc(sizeof(key_list *) * 4);
     assert(key_lists);
     key_lists[0] = happy_hour_keys;
     key_lists[1] = happy_day_keys;
@@ -59,11 +59,10 @@ HashTable **all_ht_setup() {
 
 }
 
-void destroy_all_ht (HashTable *hts) {
+void destroy_all_ht(HashTable *hts) {
     /**
      * TODO: implement to clean up hashtables
     */
-
 }
 
 void insert_key(key_list *key_list, char *key, size_t size) {
@@ -87,7 +86,7 @@ void free_key_list(key_list **key_list) {
     while (curr) {
         free(curr->key);
         curr->key = NULL;
-        
+
         prev = curr;
         curr = curr->next;
 
@@ -145,7 +144,7 @@ void process_tweet_data(HashTable **ht, key_list **keys, data_struct *data) {
     }
 }
 
-MPI_Items *all_ht_to_lists(HashTable **hash_tables, key_list **key_lists) {
+items *all_ht_to_lists(HashTable **hash_tables, key_list **key_lists) {
 
     HashTable *happy_hour = hash_tables[0];
     HashTable *happy_day = hash_tables[1];
@@ -157,17 +156,17 @@ MPI_Items *all_ht_to_lists(HashTable **hash_tables, key_list **key_lists) {
     key_list *active_hour_keys = key_lists[2];
     key_list *active_day_keys = key_lists[3];
 
-    MPI_Items *ret = (MPI_Items *)malloc (sizeof(MPI_Items));
+    items *ret = (items *) malloc(sizeof(items));
     assert(ret);
     ret->happy_hour = NULL;
     ret->happy_day = NULL;
     ret->active_hour = NULL;
     ret->active_day = NULL;
 
-    ret->happy_hour = (MPI_Sentiment_node *) ht_to_list(happy_hour, happy_hour_keys, 1);
-    ret->happy_day = (MPI_Sentiment_node *) ht_to_list(happy_day, happy_day_keys, 1);
-    ret->active_hour = (MPI_Count_node *) ht_to_list(active_hour, active_hour_keys, 0);
-    ret->active_day = (MPI_Count_node *) ht_to_list(active_day, active_day_keys, 0);
+    ret->happy_hour = (sentiment_node *) ht_to_list(happy_hour, happy_hour_keys, 1);
+    ret->happy_day = (sentiment_node *) ht_to_list(happy_day, happy_day_keys, 1);
+    ret->active_hour = (count_node *) ht_to_list(active_hour, active_hour_keys, 0);
+    ret->active_day = (count_node *) ht_to_list(active_day, active_day_keys, 0);
 
     return ret;
 }
@@ -175,44 +174,46 @@ MPI_Items *all_ht_to_lists(HashTable **hash_tables, key_list **key_lists) {
 void *ht_to_list(HashTable *ht, key_list *key_list, int item_type) { // 1 for sentiment, 0 for count
 
     if (item_type) {
-        MPI_Sentiment_node *ret_node = (MPI_Sentiment_node *)malloc(sizeof(MPI_Sentiment_node) * ht->size); // Malloc provides contiguous blocks
+        // Malloc provides contiguous blocks
+        sentiment_node *ret_node = (sentiment_node *) malloc(sizeof(sentiment_node) * ht->size);
         my_key_t *curr = key_list->head_key;
         int i = 0;
         while (curr) {
             memcpy(ret_node[i].key, curr->key, ht->key_size);
-            ret_node[i].sentiment = *(long double *)ht_lookup(ht, curr->key);
+            ret_node[i].sentiment = *(long double *) ht_lookup(ht, curr->key);
             i += 1;
             curr = curr->next;
         }
-        return (void *)ret_node;
+        return (void *) ret_node;
     } else {
-        MPI_Count_node *ret_node = (MPI_Count_node *)malloc(sizeof(MPI_Count_node) * ht->size); // Malloc provides contiguous blocks
+        // Malloc provides contiguous blocks
+        count_node *ret_node = (count_node *) malloc(sizeof(count_node) * ht->size);
         my_key_t *curr = key_list->head_key;
         int i = 0;
         while (curr) {
             memcpy(ret_node[i].key, curr->key, ht->key_size);
-            ret_node[i].count = *(int *)ht_lookup(ht, curr->key);
+            ret_node[i].count = *(int *) ht_lookup(ht, curr->key);
             i += 1;
             curr = curr->next;
         }
-        return (void *)ret_node;
+        return (void *) ret_node;
     }
-    
+
 }
 
 void consolidate_child_data(HashTable *ht, key_list *keys, int score_type, void *node, int list_size) {
     // score_type = 1 -> sentiment, score_type = 0 -> count
     if (score_type) {
-        MPI_Sentiment_node *head = (MPI_Sentiment_node *) node;
-        for (int i=0;i < list_size;i++) {
-            update_ht_and_key(ht, keys, head->key, (void *)&(head->sentiment), 1);
+        sentiment_node *head = (sentiment_node *) node;
+        for (int i = 0; i < list_size; i++) {
+            update_ht_and_key(ht, keys, head->key, (void *) &(head->sentiment), 1);
             head += 1;
         }
 
     } else {
-        MPI_Count_node *head = (MPI_Count_node *) node;
-        for (int i=0;i < list_size;i++) {
-            update_ht_and_key(ht, keys, head->key, (void *)&(head->count), 0);
+        count_node *head = (count_node *) node;
+        for (int i = 0; i < list_size; i++) {
+            update_ht_and_key(ht, keys, head->key, (void *) &(head->count), 0);
             head += 1;
         }
     }
@@ -220,41 +221,37 @@ void consolidate_child_data(HashTable *ht, key_list *keys, int score_type, void 
 
 }
 
-int update_ht_and_key(HashTable *ht, key_list *key_list, char *key, void *value, int data_type) { // data_type = 1 -> sentiment, 0 -> count;
+int update_ht_and_key(HashTable *ht, key_list *key_list, char *key, void *value,
+                      int data_type) { // data_type = 1 -> sentiment, 0 -> count;
     if (data_type) {
-        long double *sentiment = (long double *) ht_lookup(ht, (void *)key);
+        long double *sentiment = (long double *) ht_lookup(ht, (void *) key);
         if (sentiment) { // Key is found in Hashtable, no need to insert to list
             long double temp = *sentiment;
-            temp += *(long double *)value;
-            ht_insert(ht, (void *)key, &temp);
+            temp += *(long double *) value;
+            ht_insert(ht, (void *) key, &temp);
         } else {
             // Key is not found in Hashtable
-            ht_insert(ht, (void *)key, value);
+            ht_insert(ht, (void *) key, value);
             insert_key(key_list, key, ht->key_size);
         }
-
-        return HT_SUCCESS;
-
     } else {
-        int *count = (int *) ht_lookup(ht, (void *)key);
+        int *count = (int *) ht_lookup(ht, (void *) key);
         int temp = 0;
         if (count) { // Key is found in Hashtable, no need to insert to list
             temp = *count;
-            temp += *(int *)value;
-            ht_insert(ht, (void *)key, &temp);
-        } else { 
+            temp += *(int *) value;
+            ht_insert(ht, (void *) key, &temp);
+        } else {
             // Key is not found in Hashtable
-            ht_insert(ht, (void *)key, value);
+            ht_insert(ht, (void *) key, value);
             insert_key(key_list, key, ht->key_size);
         }
-
-        return HT_SUCCESS;
     }
-
-    return HT_ERROR;
+    return HT_SUCCESS;
 }
 
-void find_most(HashTable *ht, key_list *key_list, char *leading_time, int data_type) { // data_type = 1 -> sentiment, 0 -> count;
+void find_most(HashTable *ht, key_list *key_list, char *leading_time,
+               int data_type) { // data_type = 1 -> sentiment, 0 -> count;
     char *max_time = key_list->head_key->key;
     void *max_val = ht_lookup(ht, key_list->head_key->key);
 
@@ -262,20 +259,18 @@ void find_most(HashTable *ht, key_list *key_list, char *leading_time, int data_t
     while (curr) {
         void *val = ht_lookup(ht, curr->key);
         if (data_type) {
-            if (*(long double *)val > *(long double *)max_val) {
+            if (*(long double *) val > *(long double *) max_val) {
                 max_val = val;
                 max_time = curr->key;
             }
         } else {
-            if (*(int *)val > *(int *)max_val) {
+            if (*(int *) val > *(int *) max_val) {
                 max_val = val;
                 max_time = curr->key;
             }
         }
-
         curr = curr->next;
     }
-
     memcpy(leading_time, max_time, ht->key_size);
     return;
 }
