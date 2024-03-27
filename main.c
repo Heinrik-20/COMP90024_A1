@@ -79,8 +79,6 @@ int main(int argc, char **argv) {
                 for (int i = ended_size; i < size; i++) {
                     displacements[i] = 0;
                     rowlens[i] = 0;
-
-                    printf("Ended size less than total size\n");
                 }
             }
 
