@@ -201,18 +201,20 @@ void *ht_to_list(HashTable *ht, key_list *key_list, int item_type) { // 1 for se
 
 }
 
-void consolidate_child_data(HashTable *ht, key_list *keys, int score_type, void *node, int list_size) {
+void consolidate_child_data(HashTable *ht, key_list *keys, int score_type, void *node, int list_size, int starting_index) {
     // score_type = 1 -> sentiment, score_type = 0 -> count
     if (score_type) {
         sentiment_node *head = (sentiment_node *) node;
-        for (int i = 0; i < list_size; i++) {
+        head += starting_index;
+        for (int i = starting_index; i < list_size; i++) {
             update_ht_and_key(ht, keys, head->key, (void *) &(head->sentiment), 1);
             head += 1;
         }
 
     } else {
         count_node *head = (count_node *) node;
-        for (int i = 0; i < list_size; i++) {
+        head += starting_index;
+        for (int i = starting_index; i < list_size; i++) {
             update_ht_and_key(ht, keys, head->key, (void *) &(head->count), 0);
             head += 1;
         }

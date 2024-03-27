@@ -53,7 +53,7 @@ void free_key_list(key_list **key_list);
 
 void process_tweet_data(HashTable **ht, key_list **keys, data_struct *data);
 
-void consolidate_child_data(HashTable *ht, key_list *keys, int score_type, void *node, int list_size);
+void consolidate_child_data(HashTable *ht, key_list *keys, int score_type, void *node, int list_size, int starting_index);
 
 ret_struct *process_tweets(data_struct *data);
 

@@ -218,6 +218,11 @@ int main(int argc, char **argv) {
 
         // Allocate memory for receiving the sizes of the lists of other processors
         int *list_sizes = malloc(size * 4 * sizeof(int));
+        int **list_size_transpose = (int **) malloc(sizeof(int *) * 4);
+
+        for (int i=0;i < 4;i++) {
+            list_size_transpose[i] = (int *)malloc(sizeof(int) * size);
+        }
 
         MPI_Gather(hash_list_sizes, 1, MPI_list_size_arr,
                    list_sizes, 1, MPI_list_size_arr,
@@ -233,6 +238,10 @@ int main(int argc, char **argv) {
             temp_sizes[2] += list_sizes[4 * i + 2]; // active hour
             temp_sizes[3] += list_sizes[4 * i + 3]; // active day
 
+            list_size_transpose[0][i] = list_sizes[4 * i + 0];
+            list_size_transpose[1][i] = list_sizes[4 * i + 1];
+            list_size_transpose[2][i] = list_sizes[4 * i + 2];
+            list_size_transpose[3][i] = list_sizes[4 * i + 3];
         }
 
         int *happy_hour_displacements = calloc(size, sizeof(int));
@@ -245,10 +254,10 @@ int main(int argc, char **argv) {
         active_day_displacements[0] = 0;
 
         for (int i = 1; i < size; i++) {
-            happy_hour_displacements[i] = happy_hour_displacements[i - 1] + list_sizes[4 * i + 0];
-            happy_day_displacements[i] = happy_day_displacements[i - 1] + list_sizes[4 * i + 1];
-            active_hour_displacements[i] = active_hour_displacements[i - 1] + list_sizes[4 * i + 2];
-            active_day_displacements[i] = active_day_displacements[i - 1] + list_sizes[4 * i + 3];
+            happy_hour_displacements[i] = happy_hour_displacements[i - 1] + list_sizes[4 * (i-1) + 0];
+            happy_day_displacements[i] = happy_day_displacements[i - 1] + list_sizes[4 * (i-1) + 1];
+            active_hour_displacements[i] = active_hour_displacements[i - 1] + list_sizes[4 * (i-1) + 2];
+            active_day_displacements[i] = active_day_displacements[i - 1] + list_sizes[4 * (i-1) + 3];
         }
 
         temp_happy_hour = (sentiment_node *) malloc(sizeof(sentiment_node) * temp_sizes[0]);
@@ -257,30 +266,29 @@ int main(int argc, char **argv) {
         temp_active_day = (count_node *) malloc(sizeof(count_node) * temp_sizes[3]);
 
         MPI_Gatherv(items_to_send->happy_hour, list_sizes[0], MPI_sentiment_node,
-                    temp_happy_hour, temp_sizes[0], happy_hour_displacements, MPI_sentiment_node,
+                    temp_happy_hour, list_size_transpose[0], happy_hour_displacements, MPI_sentiment_node,
                     0, MPI_COMM_WORLD);
-        for (int i = 0; i < temp_sizes[0]; i++) {
-            printf("%.2Lf\n", temp_happy_hour[i].sentiment);
-        }
 
-//        MPI_Gather(items_to_send->happy_day, 1, sentiment_day_arr,
-//                   temp_happy_day, 1, sentiment_day_arr,
-//                   0, MPI_COMM_WORLD);
-//        MPI_Gather(items_to_send->active_hour, 1, count_hour_arr,
-//                   temp_active_hour, 1, count_hour_arr,
-//                   0, MPI_COMM_WORLD);
-//        MPI_Gather(items_to_send->active_day, 1, count_day_arr,
-//                   temp_active_day, 1, count_day_arr,
-//                   0, MPI_COMM_WORLD);
+        MPI_Gatherv(items_to_send->happy_day, list_sizes[1], MPI_sentiment_node,
+                    temp_happy_day, list_size_transpose[1], happy_day_displacements, MPI_sentiment_node,
+                    0, MPI_COMM_WORLD);
+    
+        MPI_Gatherv(items_to_send->active_hour, list_sizes[2], MPI_count_node,
+                    temp_active_hour, list_size_transpose[2], active_hour_displacements, MPI_count_node,
+                    0, MPI_COMM_WORLD);
+
+       MPI_Gatherv(items_to_send->active_day, list_sizes[3], MPI_count_node,
+                    temp_active_day, list_size_transpose[3], active_day_displacements, MPI_count_node,
+                    0, MPI_COMM_WORLD);
 
         // Deal with each incoming MPI nodes, be sure to read in the string properly.
         /**
          * This needs to be in the form fn(root_hashtable, root_keys, data_type, void *node_type)
         */
-        consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *) temp_happy_hour, list_sizes[0]);
-        consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *) temp_happy_day, list_sizes[1]);
-        consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *) temp_active_hour, list_sizes[2]);
-        consolidate_child_data(hash_tables[3], all_keys[3], 0, (void *) temp_active_day, list_sizes[3]);
+        consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *) temp_happy_hour, temp_sizes[0], happy_hour_displacements[1]);
+        consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *) temp_happy_day, temp_sizes[1], happy_day_displacements[1]);
+        consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *) temp_active_hour, temp_sizes[2], active_hour_displacements[1]);
+        consolidate_child_data(hash_tables[3], all_keys[3], 0, (void *) temp_active_day, temp_sizes[3], active_day_displacements[1]);
         free(temp_happy_hour);
         free(temp_happy_day);
         free(temp_active_hour);
@@ -318,15 +326,16 @@ int main(int argc, char **argv) {
         MPI_Gatherv(items_to_send->happy_hour, hash_list_sizes[0], MPI_sentiment_node,
                     NULL, NULL, NULL, MPI_sentiment_node,
                     0, MPI_COMM_WORLD);
-//        MPI_Gather(items_to_send->happy_day, 1, sentiment_day_arr,
-//                   NULL, 0, sentiment_day_arr,
-//                   0, MPI_COMM_WORLD);
-//        MPI_Gather(items_to_send->active_hour, 1, count_hour_arr,
-//                   NULL, 0, count_hour_arr,
-//                   0, MPI_COMM_WORLD);
-//        MPI_Gather(items_to_send->active_day, 1, count_day_arr,
-//                   NULL, 0, count_day_arr,
-//                   0, MPI_COMM_WORLD);
+        MPI_Gatherv(items_to_send->happy_day, hash_list_sizes[1], MPI_sentiment_node,
+                    NULL, NULL, NULL, MPI_sentiment_node,
+                    0, MPI_COMM_WORLD);
+        MPI_Gatherv(items_to_send->active_hour, hash_list_sizes[2], MPI_count_node,
+                    NULL, NULL, NULL, MPI_count_node,
+                    0, MPI_COMM_WORLD);
+        MPI_Gatherv(items_to_send->active_day, hash_list_sizes[3], MPI_count_node,
+                    NULL, NULL, NULL, MPI_sentiment_node,
+                    0, MPI_COMM_WORLD);
+
     }
 
     MPI_Finalize();
