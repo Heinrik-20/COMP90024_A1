@@ -1,0 +1,20 @@
+Most Happy Hour: 20211231 13:00:00, sentiment: 3658.95
+Most Happy Day: 20211231, sentiment: 30402.26
+Most Active Hour: 20220521 12:00:00, count: 39061
+Most Active Day: 20220521, count: 424372
+
+real	4m21.255s
+user	0m0.008s
+sys	0m0.009s
+Usage: /apps/common/bin/my-job-stats [Options] -j <Jobid> [-a|-c|-d|-s|-v]
+     Options:
+             -a --overall   Display the overall CPU/GPU usage metrics for a running job since it started
+             -c --current   Display the current CPU/GPU usage metrics for a running job 
+             -h --help      Help menu
+             -j --jobid     Job id
+             -n --no-color  Do not colorize the usage stats
+             -s --sleep     Only to be used in job submit scripts to ensure that runtime of the job is atleast 30 secs before listing metrics.
+                            Without this option, very short jobs with less than 30 secs runtime may return invalid resource usage stats
+             -v --verbose   Verbose mode
+             -d --debug     Debug mode to dump raw slurm job data 
+        

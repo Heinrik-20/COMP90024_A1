@@ -283,10 +283,12 @@ int main(int argc, char **argv) {
         /**
          * This needs to be in the form fn(root_hashtable, root_keys, data_type, void *node_type)
         */
-        consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *) temp_happy_hour, temp_sizes[0], happy_hour_displacements[1]);
-        consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *) temp_happy_day, temp_sizes[1], happy_day_displacements[1]);
-        consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *) temp_active_hour, temp_sizes[2], active_hour_displacements[1]);
-        consolidate_child_data(hash_tables[3], all_keys[3], 0, (void *) temp_active_day, temp_sizes[3], active_day_displacements[1]);
+       if (size > 1) {
+            consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *) temp_happy_hour, temp_sizes[0], happy_hour_displacements[1]);
+            consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *) temp_happy_day, temp_sizes[1], happy_day_displacements[1]);
+            consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *) temp_active_hour, temp_sizes[2], active_hour_displacements[1]);
+            consolidate_child_data(hash_tables[3], all_keys[3], 0, (void *) temp_active_day, temp_sizes[3], active_day_displacements[1]);
+       }
         free(temp_happy_hour);
         free(temp_happy_day);
         free(temp_active_hour);

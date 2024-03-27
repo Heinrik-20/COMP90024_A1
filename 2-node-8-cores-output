@@ -1,11 +1,11 @@
-Most Happy Hour: 20211231 13:00:00, sentiment: 7317.90
-Most Happy Day: 20211231, sentiment: 60804.53
-Most Active Hour: 20220521 12:00:00, count: 78122
-Most Active Day: 20220521, count: 848744
+Most Happy Hour: 20211231 13:00:00, sentiment: 3658.95
+Most Happy Day: 20211231, sentiment: 30402.26
+Most Active Hour: 20220521 12:00:00, count: 39061
+Most Active Day: 20220521, count: 424372
 
-real	3m23.181s
+real	2m9.724s
 user	0m0.007s
-sys	0m0.007s
+sys	0m0.008s
 Usage: /apps/common/bin/my-job-stats [Options] -j <Jobid> [-a|-c|-d|-s|-v]
      Options:
              -a --overall   Display the overall CPU/GPU usage metrics for a running job since it started
