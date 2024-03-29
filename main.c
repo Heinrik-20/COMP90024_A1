@@ -8,7 +8,6 @@
 #define MAX_READS 10000
 
 int main(int argc, char **argv) {
-
     MPI_Init(&argc, &argv);
 
     HashTable **hash_tables = all_ht_setup(); // This ensures that the proper order of the Hashtables
@@ -185,15 +184,6 @@ int main(int argc, char **argv) {
     MPI_Type_create_struct(2, lengths, displacements, count_types, &MPI_count_node);
     MPI_Type_commit(&MPI_count_node);
 
-//    MPI_Type_contiguous(hash_tables[0]->size, sentiment_node, &sentiment_hour_arr);
-//    MPI_Type_commit(&sentiment_hour_arr);
-//    MPI_Type_contiguous(hash_tables[1]->size, sentiment_node, &sentiment_day_arr);
-//    MPI_Type_commit(&sentiment_day_arr);
-//    MPI_Type_contiguous(hash_tables[2]->size, count_node, &count_hour_arr);
-//    MPI_Type_commit(&count_hour_arr);
-//    MPI_Type_contiguous(hash_tables[3]->size, count_node, &count_day_arr);
-//    MPI_Type_commit(&count_day_arr);
-
     // 0 -> happy hour, 1 -> happy day, 2 -> active hour, 3 -> active day
     int hash_list_sizes[] = {hash_tables[0]->size, hash_tables[1]->size, hash_tables[2]->size, hash_tables[3]->size};
     MPI_Type_contiguous(4, MPI_INT, &MPI_list_size_arr);
@@ -218,8 +208,8 @@ int main(int argc, char **argv) {
         int *list_sizes = malloc(size * 4 * sizeof(int));
         int **list_size_transpose = (int **) malloc(sizeof(int *) * 4);
 
-        for (int i=0;i < 4;i++) {
-            list_size_transpose[i] = (int *)malloc(sizeof(int) * size);
+        for (int i = 0; i < 4; i++) {
+            list_size_transpose[i] = (int *) malloc(sizeof(int) * size);
         }
 
         MPI_Gather(hash_list_sizes, 1, MPI_list_size_arr,
@@ -252,10 +242,10 @@ int main(int argc, char **argv) {
         active_day_displacements[0] = 0;
 
         for (int i = 1; i < size; i++) {
-            happy_hour_displacements[i] = happy_hour_displacements[i - 1] + list_sizes[4 * (i-1) + 0];
-            happy_day_displacements[i] = happy_day_displacements[i - 1] + list_sizes[4 * (i-1) + 1];
-            active_hour_displacements[i] = active_hour_displacements[i - 1] + list_sizes[4 * (i-1) + 2];
-            active_day_displacements[i] = active_day_displacements[i - 1] + list_sizes[4 * (i-1) + 3];
+            happy_hour_displacements[i] = happy_hour_displacements[i - 1] + list_sizes[4 * (i - 1) + 0];
+            happy_day_displacements[i] = happy_day_displacements[i - 1] + list_sizes[4 * (i - 1) + 1];
+            active_hour_displacements[i] = active_hour_displacements[i - 1] + list_sizes[4 * (i - 1) + 2];
+            active_day_displacements[i] = active_day_displacements[i - 1] + list_sizes[4 * (i - 1) + 3];
         }
 
         temp_happy_hour = (sentiment_node *) malloc(sizeof(sentiment_node) * temp_sizes[0]);
@@ -270,12 +260,12 @@ int main(int argc, char **argv) {
         MPI_Gatherv(items_to_send->happy_day, list_sizes[1], MPI_sentiment_node,
                     temp_happy_day, list_size_transpose[1], happy_day_displacements, MPI_sentiment_node,
                     0, MPI_COMM_WORLD);
-    
+
         MPI_Gatherv(items_to_send->active_hour, list_sizes[2], MPI_count_node,
                     temp_active_hour, list_size_transpose[2], active_hour_displacements, MPI_count_node,
                     0, MPI_COMM_WORLD);
 
-       MPI_Gatherv(items_to_send->active_day, list_sizes[3], MPI_count_node,
+        MPI_Gatherv(items_to_send->active_day, list_sizes[3], MPI_count_node,
                     temp_active_day, list_size_transpose[3], active_day_displacements, MPI_count_node,
                     0, MPI_COMM_WORLD);
 
@@ -283,12 +273,16 @@ int main(int argc, char **argv) {
         /**
          * This needs to be in the form fn(root_hashtable, root_keys, data_type, void *node_type)
         */
-       if (size > 1) {
-            consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *) temp_happy_hour, temp_sizes[0], happy_hour_displacements[1]);
-            consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *) temp_happy_day, temp_sizes[1], happy_day_displacements[1]);
-            consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *) temp_active_hour, temp_sizes[2], active_hour_displacements[1]);
-            consolidate_child_data(hash_tables[3], all_keys[3], 0, (void *) temp_active_day, temp_sizes[3], active_day_displacements[1]);
-       }
+        if (size > 1) {
+            consolidate_child_data(hash_tables[0], all_keys[0], 1, (void *) temp_happy_hour, temp_sizes[0],
+                                   happy_hour_displacements[1]);
+            consolidate_child_data(hash_tables[1], all_keys[1], 1, (void *) temp_happy_day, temp_sizes[1],
+                                   happy_day_displacements[1]);
+            consolidate_child_data(hash_tables[2], all_keys[2], 0, (void *) temp_active_hour, temp_sizes[2],
+                                   active_hour_displacements[1]);
+            consolidate_child_data(hash_tables[3], all_keys[3], 0, (void *) temp_active_day, temp_sizes[3],
+                                   active_day_displacements[1]);
+        }
         free(temp_happy_hour);
         free(temp_happy_day);
         free(temp_active_hour);
@@ -304,9 +298,9 @@ int main(int argc, char **argv) {
         find_most(hash_tables[2], all_keys[2], final_active_hour, 0);
         find_most(hash_tables[3], all_keys[3], final_active_day, 0);
 
-        printf("Most Happy Hour: %s, sentiment: %.2LF\n", final_happy_hour,
+        printf("Happiest Hour: %s, sentiment: %.2LF\n", final_happy_hour,
                *(long double *) ht_lookup(hash_tables[0], final_happy_hour));
-        printf("Most Happy Day: %s, sentiment: %.2LF\n", final_happy_day,
+        printf("Happiest Day: %s, sentiment: %.2LF\n", final_happy_day,
                *(long double *) ht_lookup(hash_tables[1], final_happy_day));
         printf("Most Active Hour: %s, count: %d\n", final_active_hour,
                *(int *) ht_lookup(hash_tables[2], final_active_hour));
