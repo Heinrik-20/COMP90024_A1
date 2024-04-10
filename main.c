@@ -10,7 +10,8 @@
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
 
-    HashTable **hash_tables = all_ht_setup(); // This ensures that the proper order of the Hashtables
+    // Setup hash tables and ensure they are in the correct order
+    HashTable **hash_tables = all_ht_setup();
     key_list **all_keys = all_keys_setup();
 
     int rank;
@@ -32,7 +33,7 @@ int main(int argc, char **argv) {
         int lineRecvLen = 0;
         char *lineReceived;
         if (rank == 0) {
-            // Skip first row
+            // Skip first row of the document
             if (!skipped_first) {
                 char *starting_line = NULL;
                 getline_clean(&starting_line, &rowlen, fp);
@@ -62,7 +63,7 @@ int main(int argc, char **argv) {
                 }
             }
 
-            // figure out where each row begins and ends (prefix sum)
+            // Figure out where each row begins and ends (prefix sum)
             displacements[0] = 0;
             for (int i = 1; i < size && i < ended_size; i++) {
                 displacements[i] = displacements[i - 1] + rowlens[i - 1];
@@ -81,6 +82,7 @@ int main(int argc, char **argv) {
                 }
             }
 
+            // Send the row lens to each rank
             MPI_Scatter(rowlens, 1, MPI_INT,
                         &lineRecvLen, 1, MPI_INT,
                         0, MPI_COMM_WORLD);
@@ -92,10 +94,7 @@ int main(int argc, char **argv) {
             lineReceived = malloc(lineRecvLen * sizeof(char));
             assert(lineReceived);
 
-            /**
-             * TODO: need to refactor this to account for zero lengths, error occurs when there is nothing to send across to the other nodes.
-             * 
-            */
+            // Send a line to each rank
             MPI_Scatterv(strings_to_send, rowlens, displacements, MPI_CHAR,
                          lineReceived, lineRecvLen, MPI_CHAR,
                          0, MPI_COMM_WORLD);
@@ -116,9 +115,8 @@ int main(int argc, char **argv) {
 
             free(displacements);
             displacements = NULL;
-
-
         } else {
+            // Receive the length of the row to be received
             MPI_Scatter(NULL, 1, MPI_INT, &lineRecvLen, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
             if (lineRecvLen == 0) {
@@ -128,11 +126,12 @@ int main(int argc, char **argv) {
             lineReceived = malloc(lineRecvLen * sizeof(char));
             assert(lineReceived);
 
+            // Receive the row from the rank
             MPI_Scatterv(NULL, NULL, NULL, MPI_CHAR, lineReceived, lineRecvLen, MPI_CHAR, 0, MPI_COMM_WORLD);
         }
 
         /**
-         *  TODO: Deal with line received information
+         *  Deal with line received information
          *      1. convert to data_struct
          *      2. Store into hashtable
          */
@@ -141,22 +140,22 @@ int main(int argc, char **argv) {
 
         free(lineReceived);
         lineReceived = NULL;
+
         free_data_struct_list(&data);
         data = NULL;
-
     }
 
-    // After the reading of the file has ended and all information has been processed
     /**
-     *  TODO: Send Hashtable back to ROOT 
+     *  After the reading of the file has ended and all information has been processed
+     *  send Hashtable back to ROOT
      *      1. Commit Type Nodes and create a contiguous type
      *      2. Send it back 
      */
     MPI_Datatype MPI_sentiment_node, MPI_count_node;
-//    MPI_Datatype sentiment_hour_arr, sentiment_day_arr, count_hour_arr, count_day_arr;
     MPI_Datatype MPI_list_size_arr;
     MPI_Datatype sentiment_types[2] = {MPI_CHAR, MPI_LONG_DOUBLE}, count_types[2] = {MPI_CHAR, MPI_INT};
-    int lengths[] = {HOUR_STR_LEN, 1}; // Here we just use the longest string we can find
+    // Here we just use the longest string possible, found through evaluation of the input with the smaller files
+    int lengths[] = {HOUR_STR_LEN, 1};
 
     // Calculate displacements for sentiment_node
     MPI_Aint displacements[2];
@@ -193,11 +192,9 @@ int main(int argc, char **argv) {
 
     if (rank == 0) {
         /**
-         * TODO: Handle strings and store information
-         *      1. Implement string_to_ht()
-         *      2. Store additional new keys, and new scores (sentiment score or active counts)
-         *      3. Aggregate and find_most();
-         *      4. Clean up hashtable and linked list of keys
+         * Handle strings and store information
+         *      1. Aggregate and find_most();
+         *      2. Clean up hashtable and linked list of keys
         */
         sentiment_node *temp_happy_hour;
         sentiment_node *temp_happy_day;
@@ -216,10 +213,11 @@ int main(int argc, char **argv) {
                    list_sizes, 1, MPI_list_size_arr,
                    0, MPI_COMM_WORLD);
 
+        // Each index corresponds to:
         // 0 -> happy hour, 1 -> happy day, 2 -> active hour, 3 -> active day
         int temp_sizes[] = {0, 0, 0, 0};
-        // Aggregate the sizes to be used later in memory allocation for the arrays that will receive the data
 
+        // Aggregate the sizes to be used later in memory allocation for the arrays that will receive the data
         for (int i = 0; i < size; i++) {
             temp_sizes[0] += list_sizes[4 * i + 0]; // happy hour
             temp_sizes[1] += list_sizes[4 * i + 1]; // happy day
@@ -253,6 +251,7 @@ int main(int argc, char **argv) {
         temp_active_hour = (count_node *) malloc(sizeof(count_node) * temp_sizes[2]);
         temp_active_day = (count_node *) malloc(sizeof(count_node) * temp_sizes[3]);
 
+        // Get the hash tables from the other ranks
         MPI_Gatherv(items_to_send->happy_hour, list_sizes[0], MPI_sentiment_node,
                     temp_happy_hour, list_size_transpose[0], happy_hour_displacements, MPI_sentiment_node,
                     0, MPI_COMM_WORLD);
@@ -269,8 +268,8 @@ int main(int argc, char **argv) {
                     temp_active_day, list_size_transpose[3], active_day_displacements, MPI_count_node,
                     0, MPI_COMM_WORLD);
 
-        // Deal with each incoming MPI nodes, be sure to read in the string properly.
         /**
+         * Deal with each incoming MPI nodes, be sure to read in the string properly.
          * This needs to be in the form fn(root_hashtable, root_keys, data_type, void *node_type)
         */
         if (size > 1) {
@@ -307,12 +306,13 @@ int main(int argc, char **argv) {
         printf("Most Active Day: %s, count: %d\n", final_active_day,
                *(int *) ht_lookup(hash_tables[3], final_active_day));
 
+        free(list_size_transpose);
         fclose(fp);
     } else {
         /**
-         * TODO: Handle strings and store informations
-         *      1. Send items back to root
-         *      2. Clean up hashtable and linkedlist of keys
+         * Handle strings and store information
+         *      1. Send length of the items to root
+         *      2. Send items back to root
         */
         MPI_Gather(hash_list_sizes, 1, MPI_list_size_arr,
                    NULL, 0, MPI_list_size_arr,
